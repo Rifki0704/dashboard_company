@@ -1,87 +1,50 @@
-import React, { lazy, Suspense, useMemo } from "react";
-
-import { useList, useNavigation } from "@refinedev/core";
-import { GetFieldsFromList } from "@refinedev/nestjs-query";
-
-import { DollarOutlined, RightCircleOutlined } from "@ant-design/icons";
-import { AreaConfig } from "@ant-design/plots";
-import { Button, Card } from "antd";
-import dayjs from "dayjs";
-
-import { Text } from "@/components";
-import { DashboardDealsChartQuery } from "@/graphql/types";
-
+import { DollarOutlined } from "@ant-design/icons"
+import { Card } from "antd"
+import { Text } from "../text"
+import { Area, AreaConfig } from "@ant-design/plots"
+import { useList } from "@refinedev/core"
 import { DASHBOARD_DEALS_CHART_QUERY } from "@/graphql/queries"
-const Area = lazy(() => import("@ant-design/plots/es/components/area"));
+import { mapDealsData } from "@/utilities/helpers"
+import React from "react"
+import { GetFieldsFromList } from "@refinedev/nestjs-query"
+import { DashboardDealsChartQuery } from "@/graphql/types"
 
-export const DashboardDealsChart: React.FC = () => {
-  const { list } = useNavigation();
-  const { data, isError, error } = useList<
-    GetFieldsFromList<DashboardDealsChartQuery>
-  >({
-    resource: "dealStages",
-    filters: [{ field: "title", operator: "in", value: ["WON", "LOST"] }],
+const DealsChart = () => {
+  const { data } = useList<GetFieldsFromList<DashboardDealsChartQuery>>({
+    resource: 'dealStages',
+    filters: [
+      {
+        field: 'title', operator: 'in', value: ['WON', 'LOST']
+      }
+    ],
     meta: {
-      gqlQuery: DASHBOARD_DEALS_CHART_QUERY,
-    },
+      gqlQuery: DASHBOARD_DEALS_CHART_QUERY
+    }
   });
 
-  if (isError) {
-    console.error("Error fetching deals chart data", error);
-    return null;
-  }
-
-  const dealData = useMemo(() => {
-    const won = data?.data
-      .find((node) => node.title === "WON")
-      ?.dealsAggregate.map((item) => {
-        const { closeDateMonth, closeDateYear } = item.groupBy!;
-        const date = dayjs(`${closeDateYear}-${closeDateMonth}-01`);
-        return {
-          timeUnix: date.unix(),
-          timeText: date.format("MMM YYYY"),
-          value: item.sum?.value,
-          state: "Won",
-        };
-      });
-
-    const lost = data?.data
-      .find((node) => node.title === "LOST")
-      ?.dealsAggregate.map((item) => {
-        const { closeDateMonth, closeDateYear } = item.groupBy!;
-        const date = dayjs(`${closeDateYear}-${closeDateMonth}-01`);
-        return {
-          timeUnix: date.unix(),
-          timeText: date.format("MMM YYYY"),
-          value: item.sum?.value,
-          state: "Lost",
-        };
-      });
-
-    return [...(won || []), ...(lost || [])].sort(
-      (a, b) => a.timeUnix - b.timeUnix,
-    );
-  }, [data]);
+  const dealData = React.useMemo(() => {
+    return mapDealsData(data?.data)
+  }, [data?.data])
 
   const config: AreaConfig = {
-    isStack: false,
     data: dealData,
-    xField: "timeText",
-    yField: "value",
-    seriesField: "state",
+    xField: 'timeText',
+    yField: 'value',
+    isStack: false,
+    seriesField: 'state',
     animation: true,
     startOnZero: false,
     smooth: true,
     legend: {
-      offsetY: -6,
+      offsetY: -6
     },
     yAxis: {
       tickCount: 4,
       label: {
-        formatter: (v) => {
-          return `$${Number(v) / 1000}k`;
-        },
-      },
+        formatter: (v: string) => {
+          return `$${Number(v) / 1000}k`
+        }
+      }
     },
     tooltip: {
       formatter: (data) => {
@@ -103,32 +66,27 @@ export const DashboardDealsChart: React.FC = () => {
 
   return (
     <Card
-      style={{ height: "100%" }}
-      headStyle={{ padding: "8px 16px" }}
-      bodyStyle={{ padding: "24px 24px 0px 24px" }}
+      style={{ height: '100%' }}
+      headStyle={{ padding: '8px 16px' }}
+      bodyStyle={{ padding: '24px 24px 0px 24px' }}
       title={
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}
         >
           <DollarOutlined />
-          <Text size="sm" style={{ marginLeft: ".5rem" }}>
+          <Text size="sm" style={{ marginLeft: '0.5rem'}}>
             Deals
           </Text>
         </div>
       }
-      extra={
-        <Button onClick={() => list("deals")} icon={<RightCircleOutlined />}>
-          See sales pipeline
-        </Button>
-      }
     >
-      <Suspense>
-        <Area {...config} height={325} />
-      </Suspense>
+      <Area {...config} height={325} />
     </Card>
-  );
-};
+  )
+}
+
+export default DealsChart
